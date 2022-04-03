@@ -20,30 +20,30 @@ library(corrplot)
 Homework 1
 PSTAT 131/231
 Machine Learning Main Ideas
-Please answer the following questions. Be sure that your solutions are clearly marked and that your document is neatly formatted.
+## Please answer the following questions. Be sure that your solutions are clearly marked and that your document is neatly formatted.
 
 You don’t have to rephrase everything in your own words, but if you quote directly, you should cite whatever materials you use (this can be as simple as “from the lecture/page # of book”).
 
-Question 1:
+# Question 1:
 Define supervised and unsupervised learning. What are the difference(s) between them?
 
 Answer: The supervised one we known the outcome and the unsupervised learning we don't know the outcome.
 
 
-Question 2:
+# Question 2:
 Explain the difference between a regression model and a classification model, specifically in the context of machine learning.
 
 Answer: The Y in regression is quantitative, which means is numeric value but in the classification is qualitative, it's categorical.
 
 
-Question 3:
+# Question 3:
 Name two commonly used metrics for regression ML problems. Name two commonly used metrics for classification ML problems.
 
 Answer: /
 
 
 
-Question 4:
+# Question 4:
 As discussed, statistical models can be used for different purposes. These purposes can generally be classified into the following three categories. Provide a brief description of each.
 
 Descriptive models: Aim is to predict Y with minimum reducible error, no focused on hypothesis test.(From Lecture Note)
@@ -54,7 +54,7 @@ Predictive models: Choose model to best visually emphasize a trend in data.(From
 
 
 
-Question 5:
+# Question 5:
 Predictive models are frequently used in machine learning, and they can usually be described as either mechanistic or empirically-driven. Answer the following questions.
 
 Define mechanistic. Define empirically-driven. How do these model types differ? How are they similar?
@@ -66,7 +66,7 @@ Describe how the bias-variance tradeoff is related to the use of mechanistic or 
 Answer: /
 
 
-Question 6:
+# Question 6:
 A political candidate’s campaign has collected some detailed voter history data from their constituents. The campaign is interested in two questions:
 
 Given a voter’s profile/data, how likely is it that they will vote in favor of the candidate?
@@ -76,6 +76,9 @@ How would a voter’s likelihood of support for the candidate change if they had
 Classify each question as either predictive or inferential. Explain your reasoning for each.
 
 
+Answer: 
+Predictive: "Given a voter's profile .... in favor of the candidate?" We try to figure out the trend of the voter's to vote for favor candidate so it's predictive.
+Inferential : " How would a voter's ..... with the candidate?" Since this question want to check the relationship between "voter's likelihood of support " and "personal contact". So it's a inferential.
 
 
 
@@ -86,7 +89,7 @@ Classify each question as either predictive or inferential. Explain your reasoni
 
 
 
-Exploratory Data Analysis
+## Exploratory Data Analysis
 This section will ask you to complete several exercises. For this homework assignment, we’ll be working with the mpg data set that is loaded when you load the tidyverse. Make sure you load the tidyverse and any other packages you need.
 
 Exploratory data analysis (or EDA) is not based on a specific set of rules or formulas. It is more of a state of curiosity about data. It’s an iterative process of:
@@ -98,17 +101,17 @@ A couple questions are always useful when you start out. These are “what varia
 
 You should use the tidyverse and ggplot2 for these exercises.
 
-Exercise 1:
+# Exercise 1:
 We are interested in highway miles per gallon, or the hwy variable. Create a histogram of this variable. Describe what you see/learn.
 
 ```{r}
-plot1 <- ggplot(mpg, aes(x=hwy)) + geom_histogram()
+plot1 <- ggplot(mpg, aes(x=hwy)) + geom_histogram() +labs(x="Hwy per gallon", y="count")
 print(plot1)
 ```
 
-So, mostly the miles car could use per gallon are under 30. 
+So, mostly the miles car could use per gallon are under 30. The data is not evenly distributed, group around 20 to 30 and 15 to 20.
 
-Exercise 2:
+# Exercise 2:
 Create a scatterplot. Put hwy on the x-axis and cty on the y-axis. Describe what you notice. Is there a relationship between hwy and cty? What does this mean?
 
 ```{r}
@@ -120,27 +123,29 @@ print(plot2)
 
 ```
 
-The Highway and City is correlated. The more fuel spend on highway will spend the most on city, vice versa.
+The Highway and City is correlated. The more fuel spend on highway will spend more in city, vice versa.
 
-Exercise 3:
+# Exercise 3:
 Make a bar plot of manufacturer. Flip it so that the manufacturers are on the y-axis. Order the bars by height. Which manufacturer produced the most cars? Which produced the least?
 
 ```{r}
-plot3<-ggplot(mpg, aes(y=reorder(manufacturer, manufacturer,function(y)-length(y)))) + geom_bar()
+plot3<-ggplot(mpg, aes(y=reorder(manufacturer, manufacturer,function(y)-length(y)))) + geom_bar()+
+  labs(x="Counts", y="manufacturer")
 plot3
 ```
 
 Dodge produced the most and Lincoln produced the least.
 
-Exercise 4:
+# Exercise 4:
 Make a box plot of hwy, grouped by cyl. Do you see a pattern? If so, what?
 
 ```{r}
-plot4<- ggplot(mpg,aes(group = cyl, x=hwy))+geom_boxplot() 
+plot4<- ggplot(mpg,aes(group = cyl, x=hwy))+geom_boxplot() + labs(x="Hwy per gallon", y="Number of Cylinders")
 print(plot4)
 ```
+We could say that hwy per gallon has negative correlated with number of cylinders so when car has less cylinders will cost higher cost of gallons in hwy.
 
-Exercise 5:
+# Exercise 5:
 Use the corrplot package to make a lower triangle correlation matrix of the mpg dataset. (Hint: You can find information on the package here.)
 
 ```{r}
@@ -156,5 +161,5 @@ Which variables are positively or negatively correlated with which others? Do th
 Negative correlated: City miles per gallon with engine displacement, highway miles per gallon with engine displacement. Number of cylinders with city miles per gallon and number of cylinders with highway miles per gallon.
 Positive correlated: Engine displacement with number of cylinders. City miles per gallon with highway miles per gallon.
 
-I think the correlated that cty and hwy makes sense since the oil consuming between city and highway won't have big difference.
+I think the correlated that cty and hwy makes sense since the oil consuming between city and highway won't have big difference and. From ex4, we've already known the correlation between number of cylinders and gallon costs in highway(so it makes sense the correlation between cyl and cty). Last, the more cylinders will cost more engine displacement also makes sense.
 
