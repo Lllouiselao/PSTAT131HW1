@@ -63,7 +63,7 @@ In general, is a mechanistic or empirically-driven model easier to understand? E
 
 Describe how the bias-variance tradeoff is related to the use of mechanistic or empirically-driven models.
 
-Answer: /
+Answer: For mechanistic it's parametric form. For empirically-driven, it's non-parametric. Both of them might cause overfitting. (From Lecture Note) I think mechanistic is easier to understand since it has parametric form and could add parameters.
 
 
 # Question 6:
