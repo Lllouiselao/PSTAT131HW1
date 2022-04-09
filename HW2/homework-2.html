@@ -1679,11 +1679,38 @@ predict <code>age</code>. Explain why you shouldn’t use
 </ol>
 <p>You’ll need to investigate the <code>tidymodels</code> documentation
 to find the appropriate step functions to use.</p>
+<pre class="r"><code>abalone_recipe &lt;- recipe(age ~ type + longest_shell + diameter + height + whole_weight + shucked_weight + viscera_weight + shell_weight, data = abalone_train)  %&gt;%  
+ step_dummy(all_nominal_predictors()) %&gt;%
+ step_center(all_predictors()) %&gt;% 
+  step_scale(all_predictors()) %&gt;%
+ step_interact(terms = type ~ shucked_weight) %&gt;% 
+ step_interact(terms = longest_shell ~ diameter) %&gt;% 
+ step_interact(terms = shucked_weight ~ shell_weight)
+
+abalone_recipe</code></pre>
+<pre><code>## Recipe
+## 
+## Inputs:
+## 
+##       role #variables
+##    outcome          1
+##  predictor          8
+## 
+## Operations:
+## 
+## Dummy variables from all_nominal_predictors()
+## Centering for all_predictors()
+## Scaling for all_predictors()
+## Interactions with type shucked_weight
+## Interactions with longest_shell diameter
+## Interactions with shucked_weight shell_weight</code></pre>
 </div>
 <div id="question-4" class="section level3">
 <h3>Question 4</h3>
 <p>Create and store a linear regression object using the
 <code>&quot;lm&quot;</code> engine.</p>
+<pre class="r"><code>abalone_model &lt;- linear_reg() %&gt;%
+  set_engine(&quot;lm&quot;)</code></pre>
 </div>
 <div id="question-5" class="section level3">
 <h3>Question 5</h3>
@@ -1693,6 +1720,9 @@ to find the appropriate step functions to use.</p>
 <li>add the model you created in Question 4, and</li>
 <li>add the recipe that you created in Question 3.</li>
 </ol>
+<pre class="r"><code>abalone_workflow &lt;- workflow() %&gt;%
+  add_model(abalone_model) %&gt;% 
+  add_recipe(abalone_recipe) </code></pre>
 </div>
 <div id="question-6" class="section level3">
 <h3>Question 6</h3>
@@ -1700,6 +1730,15 @@ to find the appropriate step functions to use.</p>
 hypothetical female abalone with longest_shell = 0.50, diameter = 0.10,
 height = 0.30, whole_weight = 4, shucked_weight = 1, viscera_weight = 2,
 shell_weight = 1.</p>
+<pre class="r"><code>abalone_fit = fit(abalone_workflow, abalone_train)
+predicted_df &lt;- data.frame(type = &#39;F&#39;, longest_shell = 0.50, diameter = 0.10, height = 0.30, whole_weight = 4, shucked_weight = 1, viscera_weight = 2, shell_weight = 1)
+
+abalone_predict &lt;- predict(abalone_fit, predicted_df)
+abalone_predict</code></pre>
+<pre><code>## # A tibble: 1 x 1
+##   .pred
+##   &lt;dbl&gt;
+## 1  19.4</code></pre>
 </div>
 <div id="question-7" class="section level3">
 <h3>Question 7</h3>
@@ -1715,6 +1754,17 @@ assess your model’s performance).</li>
 <li>Finally, apply your metric set to the tibble, report the results,
 and interpret the <em>R<sup>2</sup></em> value.</li>
 </ol>
+<pre class="r"><code>abalone_metrics = metric_set(rsq, rmse, mae)
+abalone_train_res &lt;- predict(abalone_fit, new_data = abalone_train %&gt;% select(-age))
+abalone_train_res &lt;- bind_cols (abalone_train_res, abalone_train %&gt;%select(age))
+
+abalone_metrics(abalone_train_res, truth = age, estimate = .pred)</code></pre>
+<pre><code>## # A tibble: 3 x 3
+##   .metric .estimator .estimate
+##   &lt;chr&gt;   &lt;chr&gt;          &lt;dbl&gt;
+## 1 rsq     standard       0.541
+## 2 rmse    standard       3.22 
+## 3 mae     standard       2.33</code></pre>
 </div>
 <div id="required-for-231-students" class="section level3">
 <h3>Required for 231 Students</h3>
