@@ -2,12 +2,12 @@
 title: "Homework 2"
 author: "PSTAT 131/231"
 output:
-  pdf_document:
-    toc: yes
   html_document:
     toc: yes
     toc_float: yes
     code_folding: show
+  pdf_document:
+    toc: yes
 ---
 
 ```{r setup, include=FALSE}
@@ -32,7 +32,11 @@ age <- abalone_data$rings + 1.5
 abalone_data <- cbind(abalone_data, age)
 
 head(abalone_data)
+
+hist(abalone_data $age, main= "Histogram of Abalone age")
 ```
+Based on the Hist graph, we could see the age of abalones followed kind of normal distribution. Most abalones' age were around 8 ~ 12.
+
 
 ### Question 2
 
@@ -78,6 +82,7 @@ abalone_recipe <- recipe(age ~ type + longest_shell + diameter + height + whole_
 
 abalone_recipe
 ```
+The reason why we shouldn't include the rings is since we already filled out the age using rings which makes two variable dependent. Then it's 100% correlated between these two, we should use other variables to do the prediction.
 
 ### Question 4
 
@@ -129,6 +134,10 @@ abalone_train_res <- bind_cols (abalone_train_res, abalone_train %>%select(age))
 
 abalone_metrics(abalone_train_res, truth = age, estimate = .pred)
 ```
+
+Rmse: is around 2.15, we could conclude this is kind of poor predict since the value > 0.5
+Mae: is 1.55 which shows the difference between the prediction and the true value.
+Rsq : R^2 shows how well the model fits the data. Since the value is 0.54 we could say it's moderate fits.
 
 ### Required for 231 Students
 
