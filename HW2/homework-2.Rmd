@@ -2,32 +2,23 @@
 title: "Homework 2"
 author: "PSTAT 131/231"
 output:
+  pdf_document:
+    toc: yes
   html_document:
     toc: yes
     toc_float: yes
     code_folding: show
-  pdf_document:
-    toc: yes
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, message = FALSE,
-                      warning = FALSE)
+
 library(tidyverse)
 library(tidymodels)
+
 ```
 
 ## Linear Regression
 
-For this lab, we will be working with a data set from the UCI (University of California, Irvine) Machine Learning repository ([see website here](http://archive.ics.uci.edu/ml/datasets/Abalone)). The full data set consists of $4,177$ observations of abalone in Tasmania. (Fun fact: [Tasmania](https://en.wikipedia.org/wiki/Tasmania "Tasmania") supplies about $25\%$ of the yearly world abalone harvest.)
-
-![*Fig 1. Inside of an abalone shell.*](https://cdn.shopify.com/s/files/1/1198/8002/products/1d89434927bffb6fd1786c19c2d921fb_2000x_652a2391-5a0a-4f10-966c-f759dc08635c_1024x1024.jpg?v=1582320404){width="152"}
-
-The age of an abalone is typically determined by cutting the shell open and counting the number of rings with a microscope. The purpose of this data set is to determine whether abalone age (**number of rings + 1.5**) can be accurately predicted using other, easier-to-obtain information about the abalone.
-
-The full abalone data set is located in the `\data` subdirectory. Read it into *R* using `read_csv()`. Take a moment to read through the codebook (`abalone_codebook.txt`) and familiarize yourself with the variable definitions.
-
-Make sure you load the `tidyverse` and `tidymodels`!
 
 ### Question 1
 
@@ -37,7 +28,7 @@ Assess and describe the distribution of `age`.
 
 ```{r}
 abalone_data<- read.csv(file = 'abalone.csv')
-age <- abalone_data$rings * 1.5
+age <- abalone_data$rings + 1.5
 abalone_data <- cbind(abalone_data, age)
 
 head(abalone_data)
@@ -68,9 +59,6 @@ Steps for your recipe:
 
 2.  create interactions between
 
-    -   `type` and `shucked_weight`,
-    -   `longest_shell` and `diameter`,
-    -   `shucked_weight` and `shell_weight`
 
 3.  center all predictors, and
 
