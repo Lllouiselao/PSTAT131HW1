@@ -2,17 +2,33 @@
 title: "Homework 4"
 author: "PSTAT 131/231"
 output:
-    html_document:
-      toc: true
-      toc_float: true
-      code_folding: show
+  html_document:
+    toc: yes
+    toc_float: yes
+    code_folding: show
+  pdf_document:
+    toc: yes
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, message = FALSE,
                       warning = FALSE)
-library(tidyverse)
 library(tidymodels)
+library(tidyverse)
+library(ISLR) 
+library(ISLR2) 
+library(discrim)
+library(poissonreg)
+library(corrr)
+library(klaR) 
+library(forcats)
+library(corrplot)
+library(pROC)
+library(recipes)
+library(rsample)
+library(parsnip)
+library(workflows)
+tidymodels_prefer()
 ```
 
 ## Resampling
@@ -23,6 +39,10 @@ For this assignment, we will continue working with part of a [Kaggle data set](h
 
 Load the data from `data/titanic.csv` into *R* and familiarize yourself with the variables it contains using the codebook (`data/titanic_codebook.txt`).
 ```{r}
+titanic_data <- read.csv("titanic.csv") 
+
+titanic_data$survived =  factor(titanic_data$survived, levels = c("Yes", "No")) 
+titanic_data$pclass =  factor(titanic_data$pclass)
 
 ```
 
@@ -34,17 +54,47 @@ Make sure you load the `tidyverse` and `tidymodels`!
 
 Create a recipe for this dataset **identical** to the recipe you used in Homework 3.
 
+
 ### Question 1
 
 Split the data, stratifying on the outcome variable, `survived.`  You should choose the proportions to split the data into. Verify that the training and testing data sets have the appropriate number of observations. 
+
+```{r}
+set.seed(2000)
+
+titanic_split <- initial_split(titanic_data, prop = 0.7, strata = survived )
+titanic_train <- training(titanic_split)
+titanic_test <- testing(titanic_split)
+
+dim(titanic_train)
+dim(titanic_test)
+
+# hw3 same recipe
+titanic_recipe <- recipe(survived ~ pclass + sex + age + sib_sp + parch + fare, data = titanic_train ) %>%
+  step_impute_linear(age ) %>%
+ step_dummy(all_nominal_predictors()) %>%
+step_interact(terms = ~ starts_with("sex"):fare +
+                  age:fare)
+
+
+```
 
 ### Question 2
 
 Fold the **training** data. Use *k*-fold cross-validation, with $k = 10$.
 
+```{r}
+
+titanic_folds <- vfold_cv(titanic_train, v = 10)
+titanic_folds
+```
+
 ### Question 3
 
 In your own words, explain what we are doing in Question 2. What is *k*-fold cross-validation? Why should we use it, rather than simply fitting and testing models on the entire training set? If we **did** use the entire training set, what resampling method would that be?
+
+We used K-fold cross validation. We split the data into 10 data sets. Since we have more data sets so even if the samples are limited, still we could have more models to fit in and then find the best model performed.
+
 
 ### Question 4
 
@@ -56,11 +106,46 @@ Set up workflows for 3 models:
 
 How many models, total, across all folds, will you be fitting to the data? To answer, think about how many folds there are, and how many models you'll fit to each fold.
 
+
+```{r}
+# logistic regression
+log <- logistic_reg() %>%
+  set_engine("glm") %>%
+  set_mode("classification") 
+
+log_wkflow <- workflow() %>%
+  add_model(log) %>%
+  add_recipe(titanic_recipe)
+
+# linear discriminant analysis 
+lda <- discrim_linear() %>%
+  set_mode("classification") %>% 
+  set_engine("MASS")
+lda_wkflow <- workflow() %>%
+  add_model(lda) %>%
+  add_recipe(titanic_recipe)
+
+# quadratic discriminant analysis 
+qda <- discrim_quad() %>% 
+  set_mode("classification") %>% 
+  set_engine("MASS")
+qda_wkflow <- workflow() %>%
+  add_model(qda) %>%
+  add_recipe(titanic_recipe)
+```
+
+Totally, we will have 30 models.
+
 ### Question 5
 
 Fit each of the models created in Question 4 to the folded data.
 
 **IMPORTANT:** *Some models may take a while to run – anywhere from 3 to 10 minutes. You should NOT re-run these models each time you knit. Instead, run them once, using an R script, and store your results; look into the use of [loading and saving](https://www.r-bloggers.com/2017/04/load-save-and-rda-files/). You should still include the code to run them when you knit, but set `eval = FALSE` in the code chunks.*
+```{r}
+log_fit = fit_resamples(log_wkflow, titanic_folds)
+lda_fit = fit_resamples(lda_wkflow, titanic_folds)
+qda_fit = fit_resamples(qda_wkflow, titanic_folds)
+```
 
 ### Question 6
 
@@ -68,15 +153,39 @@ Use `collect_metrics()` to print the mean and standard errors of the performance
 
 Decide which of the 3 fitted models has performed the best. Explain why. *(Note: You should consider both the mean accuracy and its standard error.)*
 
+```{r}
+collect_metrics(log_fit)
+collect_metrics(lda_fit)
+collect_metrics(qda_fit)
+```
+We choose the log_fit which is logistic regression since we look inside the mean and the std error. It has the highest mean accuracy and also the smallest std error. Which is better than other two models.
+
 ### Question 7
 
 Now that you’ve chosen a model, fit your chosen model to the entire training dataset (not to the folds).
+
+```{r}
+
+final_fit<- fit(log_wkflow, titanic_train)
+```
 
 ### Question 8
 
 Finally, with your fitted model, use `predict()`, `bind_cols()`, and `accuracy()` to assess your model’s performance on the testing data!
 
 Compare your model’s testing accuracy to its average accuracy across folds. Describe what you see.
+
+```{r}
+perform_final <- 
+  predict(final_fit, titanic_test) %>% 
+  bind_cols(titanic_test %>% select(survived))%>% 
+  bind_cols(predict(final_fit, titanic_test, type = "prob")) %>% 
+  accuracy(truth = survived, .pred_class)
+
+print(perform_final)
+collect_metrics(log_fit)
+```
+The accuracy of the model is around 80% and average across is also around 80%
 
 ## Required for 231 Students
 
