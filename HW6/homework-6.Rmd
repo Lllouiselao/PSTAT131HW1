@@ -14,7 +14,8 @@ knitr::opts_chunk$set(echo = TRUE, message = FALSE,
 ```
 
 ```{r}
-install.packages("xgboost")
+install.packages('ranger')
+
 ```
 
 ## Tree-Based Models
@@ -31,7 +32,6 @@ The goal of this assignment is to build a statistical learning model that can pr
 
 **Note: Fitting ensemble tree-based models can take a little while to run. Consider running your models outside of the .Rmd, storing the results, and loading them in your .Rmd to minimize time to knit.**
 ```{r}
-
 library(tidymodels)
 library(tidyverse)
 library(ISLR) # For the Smarket data set
@@ -49,12 +49,12 @@ library(parsnip)
 library(workflows)
 library(janitor)
 library(glmnet)
-tidymodels_prefer()
 library(rpart.plot)
 library(vip)
 library(janitor)
 library(randomForest)
 library(xgboost)
+tidymodels_prefer()
 ```
 
 
@@ -91,7 +91,7 @@ pk_split <- initial_split(ft_data, prop = 0.75, strata = type_1)
 pk_train <- training(pk_split)
 pk_test <- testing(pk_split)
 
-pk_fold <- vfold_cv(pk_train, v = 5)
+pk_fold <- vfold_cv(pk_train, v = 5, strata = type_1)
 
 
 recipe_pk <- recipe(type_1 ~ legendary + generation + sp_atk + attack + speed + defense + hp + sp_def, data = ft_data) %>%
@@ -126,11 +126,11 @@ Print an `autoplot()` of the results. What do you observe? Does a single decisio
 tree_pk <- decision_tree() %>%
   set_engine("rpart")
 
-class_tree_pk <- tree_spec %>%
+class_tree_spec <- tree_pk %>%
   set_mode("classification")
 
 class_tree_wkflow <- workflow() %>%
-  add_model(class_tree_pk %>%
+  add_model(class_tree_spec %>%
               set_args(cost_complexity = tune())) %>%
   add_recipe(recipe_pk)
 
@@ -175,19 +175,66 @@ Now set up a random forest model and workflow. Use the `ranger` engine and set `
 
 Create a regular grid with 8 levels each. You can choose plausible ranges for each hyperparameter. Note that `mtry` should not be smaller than 1 or larger than 8. **Explain why not. What type of model would `mtry = 8` represent?**
 
+```{r}
+rfm_spec <- rand_forest(mtry = tune(),trees = tune(), min_n = tune()) %>%
+  set_engine("ranger", importance = "impurity") %>%
+  set_mode("classification")
+
+rfm_wkflow <- workflow() %>%
+  add_model(rf_spec) %>% 
+  add_recipe(recipe_pk)
+
+param_grid2 <- grid_regular(mtry(range = c(1, 8)),
+                           trees(range = c(1, 8)),
+                           min_n(range = c(1, 8)),
+                           levels = 8)
+```
+
 ### Exercise 6
 
 Specify `roc_auc` as a metric. Tune the model and print an `autoplot()` of the results. What do you observe? What values of the hyperparameters seem to yield the best performance?
 
+```{r}
+
+tune_res <- tune_grid(
+  rfm_wkflow, 
+  resamples = pk_fold, 
+  grid = param_grid2, 
+  metrics = metric_set(roc_auc)
+)
+
+# print results
+autoplot(tune_res)
+```
+
 ### Exercise 7
 
 What is the `roc_auc` of your best-performing random forest model on the folds? *Hint: Use `collect_metrics()` and `arrange()`.*
+
+```{r}
+
+arrange(collect_metrics(tune_res),desc(mean))
+
+```
 
 ### Exercise 8
 
 Create a variable importance plot, using `vip()`, with your best-performing random forest model fit on the *training* set.
 
 Which variables were most useful? Which were least useful? Are these results what you expected, or not?
+
+```{r}
+
+
+best_complexity <- select_best(tune_res, metric = "roc_auc")
+pk_final <- finalize_workflow(rfm_wkflow, best_complexity)
+
+rfm_fit <- fit(pk_final,data = pk_train)
+rfm_fit %>%
+  extract_fit_engine() %>%
+  vip()
+
+```
 
 ### Exercise 9
 
@@ -196,6 +243,10 @@ Finally, set up a boosted tree model and workflow. Use the `xgboost` engine. Tun
 What do you observe?
 
 What is the `roc_auc` of your best-performing boosted tree model on the folds? *Hint: Use `collect_metrics()` and `arrange()`.*
+```{r}
+boost_tree_pk <- boost_tree()
+
+```
 
 ### Exercise 10
 
