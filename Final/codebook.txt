@@ -1,0 +1,41 @@
+gameID	Numeric                                           #rank 
+blueWins	Binary                                               blue wins or not  1 -> wins 0 -> not win
+blueWardsPlaced	Numeric                          wanding placed by blue
+blueWardsDestroyed	Numeric         wanding destroyed by blue 
+blueFirstBlood	Binary                              blue has the first blood 1-> yes 0-> no 
+blueKills	Numeric                                           total kill by blue 
+blueDeaths	Numeric                          total deaths from blue
+blueAssists	Numeric		       total assists from blue
+blueEliteMonster	Numeric                          total Elite Monster killed by blue
+blueDragons	Numeric                          total Dragons killed by blue
+blueHeralds	Numeric                          total heralds killed by blue
+blueTowersDestroyed	Numeric         total towers destroyed 
+blueTotalGold	Numeric                          total gold gained by blue
+blueAvgLevel	Numeric                          average level from blue team(5 ppl)
+blueTotalExperience	Numeric         total experience by blue
+blueTotalMinionsKilled	Numeric         total minions killed by blue
+blueTotalJungleMinionsKilled	Numeric         total jungle minions killed by blue
+blueGoldDiff	Numeric                          differ gold compared to the other team
+blueExperienceDiff	Numeric                          differ experience compared to other team
+blueCSPerMin	Numeric                          killed minions per minus by blue 
+blueGoldPerMin	Numeric                          gold per min by blue
+redWardsPlaced	Numeric                          wanding placed by red
+redWardsDestroyed	Numeric         wanding destroyed by red
+redFirstBlood	Binary                              redhas the first blood 1-> yes 0-> no 
+redKills	Numeric                                           total kill by red
+redDeaths	Numeric                          total deaths from red
+redAssists	Numeric                          total assists from red
+redEliteMonster	Numeric                          total Elite Monster killed by red
+redDragons	Numeric                          total Dragons killed by red
+redHeralds	Numeric                          total heralds killed by red
+redTowersDestroyed	Numeric         total towers destroyed by red
+redTotalGold	Numeric                          total gold gained by red
+redAvgLevel	Numeric                          average level from redteam(5 ppl)
+redTotalExperience	Numeric                          total experience by red
+redTotalMinionsKilled	Numeric         total minions killed by red
+redTotalJungleMinionsKilled	Numeric         total jungle minions killed by red
+redGoldDiff	Numeric                          differ gold compared to the other team
+redExperienceDiff	Numeric                          differ experience compared to other team
+redCSPerMin	Numeric                          killed minions per minus by red
+redGoldPerMin	Numeric                          gold per min by red
+
