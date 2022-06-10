@@ -1,0 +1,415 @@
+---
+title: "Pstat_131_Final Project_0611"
+author: "Louis Lao"
+date: "2022/6/11"
+output:
+  html_document:
+    theme: paper
+    highlight: tango
+    code_folding: hide
+---
+## Introduction
+
+League of Legends (LoL) is an immensely popular multiplayer online battle arena game, with over 100 million monthly active users worldwide.10 players are divided into 2 teams (blue or red) in the main LoL game (there are 3 modes). The objective for each team is to destroy the opposing teams "Nexus". Think of the Nexus as the main building in a base camp. Destroy the enemy Nexus and your team wins the game.  
+
+This dataset contains the first 10min stats of approx 10k ranked games (SOLO QUEUE) from a high ELO (DIAMOND I to MASTER). Players have roughly the same level. Each game is unique. The gameId can be used to fetch more attributes from the Riot API.There are 19 features per team (38 in total) collected after 10min in-game. This includes kills, deaths, gold, experience, level and so on.  
+
+I thought it would be fun to explore this data set and see what blue team and red team attributes are associated with a blue team winning.By analyzing some characteristics of the two teams, we will use common machine learning algorithms such as boosted tree,svm,random forest,logistic regression to predict whether the blue team will win the game.  
+
+## Loading Data and Packages
+
+The data for this project comes from the kaggle competition platform see <https://www.kaggle.com/datasets/bobbyscience/league-of-legends-diamond-ranked-games-10-min>. It has a total of 9879 pieces of data. There are 1 response variable and 38 predictor variables. And 36 of them are numeric and 2 of them are binary. The column blueWins is the target value (the value we are trying to predict). A value of 1 means the blue team has won,0 otherwise.  
+
+Glossary of independent variables:
+**Warding totem:**  
+An item that a player can put on the map to reveal the nearby area. Very useful for map/objectives control.
+Minions: NPC that belong to both teams. They give gold when killed by players.
+**Jungle minions:**  
+NPC that belong to NO TEAM. They give gold and buffs when killed by players.
+**Elite monsters:**  
+Monsters with high hp/damage that give a massive bonus (gold/XP/stats) when killed by a team.
+**Dragons:**  
+Elite monster which gives team bonus when killed. The 4th dragon killed by a team gives a massive stats bonus. The 5th dragon (Elder Dragon) offers a huge advantage to the team.
+**Herald:**  
+Elite monster which gives stats bonus when killed by the player. It helps to push a lane and destroys structures.
+**Towers:**  
+Structures you have to destroy to reach the enemy Nexus. They give gold.
+**Level:**  
+Champion level. Start at 1. Max is 18.  
+
+```{r Loading Data and Packages, message=FALSE, warning=FALSE, results="hide"}
+library(tidyverse) 
+library(tidymodels) 
+library(corrplot) 
+library(caret)
+library(janitor)
+library(skimr)
+library(patchwork)
+library(lubridate)
+library(ranger)
+library(rlang)
+library(ggplot2)
+library(corrr)
+library(klaR)
+library(MASS)
+library(discrim)
+tidymodels_prefer()
+library(installr)
+high <- read_csv("high.csv")
+#View(high)
+```
+
+## Data Cleaning
+
+  1. checking missing values  
+  
+We confirmed that none of the variables have missing values.
+
+```{r check missing values, message=FALSE, warning=FALSE, results="hide"}
+head(high)
+dim(high) #9879   40
+apply(is.na(high), 2, sum)  #no missing
+```
+  2. remove unimportant variables  
+
+One of the variables is the "gameID". Since the "gameID" is just a kind of identity and it won't influence the result of each rank game, we excluded the "gameID" column. 
+
+```{r delect irrelevant variable, message=FALSE, warning=FALSE, results="hide"}
+game<-high %>% 
+  select(-gameId)
+
+```
+For the variables end with "PerMin" come from total variables like blueGoldPerMin, it is from the blueTotalGold. At the same time, variable blueKills is equal to the redDeaths. The variables "redGoldDiff" and "redExperienceDiff" come from blueTotalGold minus blueGoldDiff, blueTotalExperience minus blueExperienceDiff. Since "FirstBlood" variable is a binary variable, it will be done by red team or blue team, we only keep one. 
+
+We exclude the following variables: blueCSPerMin, redCSPerMin, blueGoldPerMin, redGoldPerMin, redDeaths, redFirstBlood, blueDeaths, redGoldDiff, redExperienceDiff.  
+
+```{r delete  variable, message=FALSE, warning=FALSE, results="hide"}
+game0 = game %>% 
+  select(-blueCSPerMin, -redCSPerMin, -blueGoldPerMin, -redGoldPerMin, -redDeaths, -redFirstBlood,
+         -blueDeaths, -redGoldDiff, -redExperienceDiff)
+```
+
+## Data Split
+
+The dataset contains a total of 9879 samples,of which 80% of the data is used as training data about 7903 and 20% of the data is used as test data about 1976.  
+Stratified sampling was used based on blueWins(response variable).
+
+```{r data split, message=FALSE, warning=FALSE, results="hide"}
+set.seed(123)
+game_split <-game0 %>% 
+  initial_split(game0,prop = 0.8, strata = "blueWins")
+game_train <- training(game_split)
+game_test <- testing(game_split)
+dim(game_train) # 7903   39
+dim(game_test)  # 1976   39
+```
+## Exploratory Data Analysis  
+
+In order to ensure that we avoid knowing anything about the test set before testing, all our exploratory data analysis is only for the training data set.  
+
+###  Distribution of Game Results
+
+We first observe the distribution of the game results (response variable), a value of 1 means the blue team wins, and a value of 0 means the blue team loses. We find that the overall probability of winning the two teams is not much different, which proves that the game is fair, the strength of the team is also almost on the same level.  
+
+```{r Distribution of Game Results, message=FALSE, warning=FALSE, results="hide"}
+theme <- theme(plot.title = element_text(hjust = 0.6, face = "bold"))
+
+game_train%>%
+  ggplot(aes(x = factor(blueWins), 
+             y = stat(count), fill = factor(blueWins),
+             label = scales::comma(stat(count)))) +
+  geom_bar(position = "dodge") + 
+  geom_text(stat = 'count',
+            position = position_dodge(.9), 
+            vjust = -0.5, 
+            size = 3) + 
+  labs(x = 'Game Results (blue win=1,blue lose=0)', y = 'Count') +
+  ggtitle("Distribution of Game Results") +
+  theme
+```
+
+###  Correlations matrix
+In order to explore the correlation between variables, we show the correlation coefficient matrix between the variables, the results show that the correlation between the dependent variable and the response variable is obvious, and there is a clear correlation between the dependent variables.
+
+```{r plot correlations, message=FALSE, warning=FALSE, results="hide"}
+correlations <- cor(game_train,method="pearson") %>%
+  corrplot(method = "color",type = "full", addCoef.col = "black"
+           , tl.cex = 0.45,number.cex = 0.35,title ='correlation matrix.')
+```
+
+###  Boxplot of blue team gold differdence by Game Results
+
+From the above correlation coefficient matrix, it can be seen that whether the blue team wins the game has a significant positive relationship with the gold difference of the two teams, so we draw the distribution of the gold difference, and the boxplot shows that the on the whole blue team wins When his gold value is higher than that of the red team, that is, the gold difference of the two teams is positive, on the contrary, if the blue team lose, the gold difference of the two teams is negative.
+
+```{r plot sodium to potassium ration feature, message=FALSE, warning=FALSE, results="hide"}
+game_train %>%
+  ggplot(aes(x = factor(blueWins), y = blueExperienceDiff,fill=factor(blueWins))) + 
+  geom_boxplot() + 
+  labs(x = 'Game Results (blue win=1,blue lose=0)', y = 'blue team Experience Difference') +
+  ggtitle("Boxplot of blue team experience differdence by Game Results") +
+  theme
+```
+
+
+###  Boxplot of blue team average level differdence by Game Results
+
+From the correlation coefficient matrix, it can be seen that whether the blue team wins the game has a significant relationship with the average level of the two teams, so we draw the distribution of the average level difference(blue average level-red average level), and the boxplot shows that the on the whole blue team wins When his average level is higher than that of the red team, that is, the average level difference of the two teams is positive, on the contrary, if the blue team lose, the average level difference of the two teams is negative.  
+
+```{r plot Sex feature, message=FALSE, warning=FALSE, results="hide"}
+game_train %>%
+  ggplot(aes(x = factor(blueWins), y = blueAvgLevel-redAvgLevel,fill=factor(blueWins))) + 
+  geom_boxplot() + 
+  labs(x = 'Game Results (blue win=1,blue lose=0)', y = 'blue team average level Difference') +
+  ggtitle("Boxplot of blue team average level differdence by Game Results") +
+  theme
+```
+
+###  Distribution of Game results by blue First Blood(1=Yes 0=NO)
+
+From the correlation coefficient graph, we also found that whether the blue team won or not had a positive correlation with whether the blue team did the first kill. We plotted the distribution of the game results in the two cases that the blue team did the first kill and the blue team didn't the first kill. The results show that when the blue team did the first kill, there is indeed a greater probability of winning the game.
+
+```{r plot blood pressure feature, message=FALSE, warning=FALSE, results="hide"}
+game_train %>%
+  ggplot(aes(x = factor(blueWins), 
+             y = stat(count), fill = factor(blueWins))) +
+  geom_bar( ) +
+  facet_wrap(~blueFirstBlood, scales = "free_y") +
+  labs(x = 'Game Results (blue win=1,blue lose=0)',
+    title = "Distribution of Game results by blue First Blood(1=Yes 0=NO)"
+  )+
+  theme
+```
+
+## Model Building
+
+###  Data prepare
+
+(1)Convert the response variable to a factor variable and assign a value,while standardizing each independent variable.  
+(2)In order to make the training data and test data completely independent and do not affect each other,we preprocess them separately
+
+```{r data prepare, message=FALSE, warning=FALSE, results="hide"}
+train <- game_train %>%
+  mutate(blueWins=factor(blueWins))
+
+levels(train$blueWins)<-c("lose", "win")
+
+train[,-1] <- scale(train[,-1])
+
+test <- game_test %>%
+  mutate(blueWins=factor(blueWins))
+
+levels(test$blueWins)<-c("lose", "win")
+
+test[,-1] <- scale(test[,-1])
+```
+
+###  Model select 
+
+I decided to run cross fold validation on the following four models.  
+1.Boosted Tree Model  
+2.SVM model  
+3.Random Forest model  
+4.Logistic regression model  
+
+####  Building the Recipe and Tweaking The Data
+
+In order to avoid the computational complexity of the computer, we set up a three-fold cross-validation, repeated three times.
+
+```{r Building the Recipe and Tweaking The Data, message=FALSE, warning=FALSE, results="hide"  }
+train_folds <- vfold_cv(train, v = 3,repeats = 3)  
+recipe<-recipe(blueWins ~. , data = train)
+recipe
+```
+
+####  Boosted Tree Model 
+
+I tuned min_n and mtry, set mode to "classification" (because my outcome is a factor variable), and used the xgboost engine. 
+
+```{r set bt model, message=FALSE, warning=FALSE, results="hide"  }
+bt_model <- boost_tree(mode = "classification",
+                       min_n = tune(),
+                       mtry = tune()
+) %>%
+  set_engine("xgboost")%>%
+  translate()
+
+bt_workflow <- workflow() %>% 
+  add_model(bt_model) %>% 
+  add_recipe(recipe)
+
+bt_params <- extract_parameter_set_dials(bt_model) %>% 
+  update(mtry = mtry(range= c(2, 40)),
+         min_n = min_n(range= c(2, 10))
+  )
+
+# define grid
+bt_grid <- grid_regular(bt_params, levels = 8)
+```
+
+Then, I executed my model by tuning and fitting and save the results. This process took 10 minutes.
+```{r execute  Boosted Tree, message=FALSE, warning=FALSE, results="hide" ,eval=FALSE}
+set.seed(123)
+bt_res <- bt_workflow %>%
+  tune_grid(resamples = train_folds,
+            grid = bt_grid)
+#save(bt_res, bt_workflow, file = "D:/bt_res3.rda")
+```
+
+Taking a quick peak at the autoplot() function and show_best() based on roc_auc metric.We found that when mtry=2,min_n=7, its mean auc value is close to 80.3%
+```{r show Boosted Tree best, message=FALSE, warning=FALSE  }
+set.seed(123)
+load("D:/bt_res3.rda")
+autoplot(bt_res, metric = "roc_auc")  
+show_best(bt_res, metric = "roc_auc") %>% select(-.estimator, -.config) #2 7  auc=80.3%
+```
+
+####  SVM Model 
+
+I set mode to "classification" (because my outcome is a factor variable) and tuned cost, and used the kernlab engine. 
+
+```{r set svm model, message=FALSE, warning=FALSE, results="hide"  }
+svm_model <- svm_rbf( cost  = tune())%>%
+  set_engine("kernlab")%>%
+  set_mode('classification')%>% 
+  translate()
+
+svm_workflow <- workflow() %>% 
+  add_model(svm_model) %>% 
+  add_recipe(recipe)
+
+svm_grid <- tibble(cost = 10^seq(-2, 0, length.out = 20))
+```
+
+Then, I executed my model by tuning and fitting and save the results. This process took 20 minutes.
+```{r execute svm, message=FALSE, warning=FALSE, results="hide" ,eval=FALSE}
+set.seed(123)
+svm_res <- svm_workflow %>%
+  tune_grid(resamples =train_folds,
+            grid = svm_grid)
+#save(svm_res, svm_workflow, file = "D:/svm_res3.rda")
+```
+
+Taking a quick peak at the autoplot() function and show_best() based on roc_auc metric.We found that when cost=0.03359818, its mean auc value is close to 80.5%,better than boosted tree.
+```{r show svm, message=FALSE, warning=FALSE  }
+set.seed(123)
+load("D:/svm_res3.rda")
+autoplot(svm_res, metric = "roc_auc")  
+show_best(svm_res, metric = "roc_auc") %>% select(-.estimator, -.config) #cost=0.0336 auc=80.5%
+```
+
+####  Random Forest Model  
+
+I tuned min_n, set mode to "classification" (because my outcome is a factor variable), and used the ranger engine. 
+
+```{r set rf model, message=FALSE, warning=FALSE, results="hide"  }
+rf_model <- rand_forest(mode = "classification",
+                        min_n = tune()
+) %>%
+  set_engine("ranger")
+
+rf_workflow <- workflow() %>% 
+  add_model(rf_model) %>% 
+  add_recipe(recipe)
+
+# to reduce computation,so only tune min_n
+rf_grid <- tibble(min_n = seq(2, 10) )
+```
+
+Then, I executed my model by tuning and fitting and save the results. This process took 15 minutes.
+```{r execute rf, message=FALSE, warning=FALSE, results="hide" ,eval=FALSE}
+set.seed(123)
+rf_res <- rf_workflow %>% 
+  tune_grid(resamples = train_folds,
+            grid = rf_grid
+  )
+#save(rf_res, rf_workflow, file = "D:/rf_res3.rda")
+```
+
+Taking a quick peak at the autoplot() function and show_best() based on roc_auc metric. When min_n is 10,the mean auc value is close to 80.3%,worse than svm model.
+```{r show rf, message=FALSE, warning=FALSE  }
+set.seed(123)
+load("D:/rf_res3.rda")
+autoplot(rf_res, metric = "roc_auc")  ##node=10 most
+show_best(rf_res, metric = "roc_auc") %>% select(-.estimator, -.config) #mean=80.3%
+```
+
+
+####  Logistic Regression Model 
+
+I tuned penalty, set mode to "classification" (because my outcome is a factor variable), and used the LiblineaR engine. I stored this model and my recipe in a workflow and set up the tuning grid.
+
+```{r set log model, message=FALSE, warning=FALSE, results="hide"  }
+log_model <- logistic_reg(penalty = tune(), mixture = 1) %>% 
+  set_engine("LiblineaR")%>% 
+  set_mode('classification')
+
+log_workflow <- workflow() %>% 
+  add_model(log_model) %>% 
+  add_recipe(recipe)
+
+log_grid <- tibble(penalty = 10^seq(-3, -1, length.out = 20))
+```
+
+Then, I executed my model by tuning and fitting and save the results. This process took 2 minutes, it is quickly.
+```{r execute log, message=FALSE, warning=FALSE, results="hide" ,eval=FALSE}
+log_res <- log_workflow %>% 
+  tune_grid(resamples = train_folds,
+            grid = log_grid,
+            control = control_grid(save_pred = TRUE),
+            metrics = metric_set(roc_auc))
+
+#save(log_res, log_workflow, file = "D:/log_res3.rda")
+```
+
+Taking a quick peak at the autoplot() function and show_best() based on roc_auc metric.We found that When penalty is 0.00695, auc has a maximum value, its mean auc value is close to 81.1%, better than all above models.
+```{r show log, message=FALSE, warning=FALSE  }
+load("D:/log_res3.rda")
+autoplot(log_res, metric = "roc_auc")  ##0.009 best
+show_best(log_res, metric = "roc_auc") %>% dplyr::select(-.estimator, -.config) #81.1% penalty=0.00695
+```
+
+###  Final Model Building  
+
+Let’s continue with the logistic regression model being the model that performed best,it's mean auc value is highest,closing to 81.1% .
+
+We’ll create a workflow that has tuned in the name, so we can identify it. We’ll finalize the workflow by taking the parameters from the best model (the logistic regression model) using the select_best() function.
+```{r log final model, message=FALSE, warning=FALSE, results="hide"  }
+set.seed(123)
+log_workflow_tuned <- log_workflow %>% 
+  finalize_workflow(select_best(log_res, metric = "roc_auc"))
+log_final <- fit(log_workflow_tuned, train)
+```
+### Analysis of The Test Set  
+
+Lets fit the final logistic model to the testing data set and plot confusion matrix and roc plot.Through the confusion matrix and roc plot, we found that the model can effectively predict whether the blue team wins the game competition, and most of the game results can be correctly predicted.
+```{r heatmap and roc plot, message=FALSE, warning=FALSE, results="hide"  }
+#heatmap
+augment(log_final, new_data = test) %>%
+  conf_mat(truth = blueWins, estimate = .pred_class) %>%
+  autoplot(type = "heatmap")
+
+#roc plot
+augment(log_final, new_data = test)%>%
+  roc_curve(blueWins, .pred_lose) %>%
+  autoplot()
+```
+
+Further, we calculated the accuracy and auc value of the model on the test set. The accuracy rate was 73.2%, and the auc value was 80.3%. It did not achieve an excellent effect, due to the performance of the data itself, we think the model is not bad.
+```{r accuracy and auc , message=FALSE, warning=FALSE, results="hide"  }
+#calculate accuracy
+log_acc <- augment(log_final, new_data = test) %>%
+  accuracy(truth = blueWins, estimate = .pred_class)
+log_acc # 0.732
+
+#calculate auc
+log_auc <- augment(log_final, new_data = test) %>%
+  roc_auc(blueWins, .pred_lose)
+log_auc # 0.803
+```
+
+## Conclusion  
+
+In order to be able to predict the outcome of the LOL based on the characteristics of the blue team and the red team and some performances in the game, we first did the exploratory data analysis and found that there is a clear correlation between the variables. The blue team's winning or losing is closely related with the game experience difference, the average level of teammates and whether the team get first kill in the game.  
+Then We selected four commonly machine learning models, namely boosted tree,SVM, random forest and logistic regression and adjusted the parameters of each model. And then used the validation set to evaluate the effect of each model. According to the performance of auc value, we believe that the logistic regression model have the best prediction effect,its mean auc value is close to 81.1%. The svm model also performed well,the mean auc value is close to 80.5%.The random forest model and boosted tree model have equal auc,closing to 80.3%.  
+Finally, we use the test set to test the best performing logistic regression model. The test results show that the prediction accuracy rate is 73.2%,auc value is 80.3%,the model predictions are valid.  
+Overall, we can effectively predict the game results through the relevant information of the two teams in the game, but the effect of the model may still have room for improvement.
